@@ -1,0 +1,22 @@
+model
+  schema 1.1
+
+type user
+
+type tenant
+  relations
+    define admin: [user]
+    define member: [user]
+
+type ticket
+  relations
+    define creator: [user]
+    define assignee: [user]
+    define viewer: [user]
+    define parent_tenant: [tenant]
+
+  permissions
+    define can_view: viewer or creator or assignee or admin from parent_tenant
+    define can_update: assignee or admin from parent_tenant
+    define can_assign: admin from parent_tenant
+    define can_comment: can_view
