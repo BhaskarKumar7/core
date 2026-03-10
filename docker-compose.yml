@@ -1,0 +1,106 @@
+version: "3.9"
+
+services:
+
+  # ==========================================
+  # Postgres for Spring Boot (FlowDesk)
+  # ==========================================
+  flowdesk-db:
+    image: postgres:15
+    container_name: flowdesk-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: flowdesk
+      POSTGRES_USER: flowdesk
+      POSTGRES_PASSWORD: flowdesk
+    ports:
+      - "5432:5432"
+    volumes:
+      - flowdesk-data:/var/lib/postgresql/data
+    networks:
+      - flowdesk-net
+
+  # ==========================================
+  # Postgres for Keycloak
+  # ==========================================
+  keycloak-db:
+    image: postgres:15
+    container_name: keycloak-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak
+    volumes:
+      - keycloak-data:/var/lib/postgresql/data
+    networks:
+      - flowdesk-net
+
+  # ==========================================
+  # Keycloak
+  # ==========================================
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    container_name: keycloak
+    restart: unless-stopped
+    command: start-dev --hostname-strict=false
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_PROXY: edge
+    ports:
+      - "8081:8080"
+    depends_on:
+      - keycloak-db
+    networks:
+      - flowdesk-net
+
+  # ==========================================
+  # Postgres for OpenFGA
+  # ==========================================
+  openfga-db:
+    image: postgres:15
+    container_name: openfga-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: openfga
+      POSTGRES_USER: openfga
+      POSTGRES_PASSWORD: openfga
+    volumes:
+      - openfga-data:/var/lib/postgresql/data
+    networks:
+      - flowdesk-net
+
+  # ==========================================
+  # OpenFGA (API + Playground)
+  # ==========================================
+  openfga:
+    image: openfga/openfga:latest
+    container_name: openfga
+    restart: unless-stopped
+    command: >
+      run
+      --http-addr 0.0.0.0:8080
+      --playground-enabled=true
+    environment:
+      OPENFGA_DATASTORE_ENGINE: postgres
+      OPENFGA_DATASTORE_URI: postgres://openfga:openfga@openfga-db:5432/openfga?sslmode=disable
+    ports:
+      - "8082:8080"
+    depends_on:
+      - openfga-db
+    networks:
+      - flowdesk-net
+
+networks:
+  flowdesk-net:
+    driver: bridge
+
+volumes:
+  flowdesk-data:
+  keycloak-data:
+  openfga-data:
